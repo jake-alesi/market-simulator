@@ -1,4 +1,3 @@
-# agents.py, agent strategies: Trend Followers, Mean Reverters, Institutional, Noise Traders
 import numpy as np
 import config
 
@@ -7,9 +6,9 @@ class Agent:
         self.strategy = strategy_name
         self.position = 0 
         
-        
-    def decide(self, book, history, vol, panic, step_index): # <--- Add step_index
+    def decide(self, book, history, vol, panic, step_index): # <--- Correctly accepts step_index
         # SAFEGUARD: Don't trade if it's not my turn
+        # This uses the variable from your config.py
         if step_index % config.AGENT_PATIENCE != 0:
             return 0 
         
@@ -24,6 +23,9 @@ class Agent:
             
         # --- NORMAL STRATEGIES ---
         current_price = book.mid_price
+        # Safety check: Ensure enough history exists
+        if len(history) < 20: return 0
+
         ma_short = np.mean(history[-5:])
         ma_long = np.mean(history[-20:])
         
@@ -35,17 +37,17 @@ class Agent:
             std = np.std(history[-20:])
             # Z-Score Reversion
             z_score = (current_price - ma_long) / (std + 1e-5)
-            if z_score > 2: signal = -1 
-            elif z_score < -2: signal = 1 
+            if z_score > 2: signal = -1   # Sell Overbought
+            elif z_score < -2: signal = 1 # Buy Oversold
             
         elif self.strategy == 'Institutional':
             # Risk Control: Reduce size if vol is high
             if vol > 0.03 and abs(self.position) > 0:
-                signal = -1 if self.position > 0 else 1
+                signal = -1 if self.position > 0 else 1 # Liquidate
             else:
-                signal = 0.1 # Slow accumulation
+                signal = 1.0 # Accumulate standard size (100 shares)
         
         elif self.strategy == 'Noise':
             signal = np.random.normal(0, 1)
 
-        return 100 * signal
+        return int(100 * signal) # Ensure integer share count
