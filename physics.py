@@ -35,11 +35,11 @@ class MarketPhysics:
 
     def get_volatility_path(self):
         """Generates the Heston volatility path for the year."""
-        v = np.zeros(config.N_DAYS)
+        v = np.zeros(config.N_STEPS)
         v[0] = config.INITIAL_VARIANCE
         dt = config.DT
         
-        for t in range(1, config.N_DAYS):
+        for t in range(1, config.N_STEPS):
             # dV = kappa(theta - V)dt + xi*sqrt(V)*dW
             drift = config.MEAN_REVERSION_SPEED * (config.LONG_TERM_VARIANCE - v[t-1]) * dt
             shock = config.VOL_OF_VOL * np.sqrt(max(v[t-1], 0)) * np.sqrt(dt) * np.random.normal()
