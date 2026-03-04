@@ -12,7 +12,7 @@ from core.physics import MarketPhysics
 from core.market import OrderBook
 from core.agents import Agent
 
-from my_strategy import UserStrategy
+from sample_strategies.my_strategy import UserStrategy
 
 def run_active_simulation():
     print(f"--- INITIALIZING MULTI-ASSET SIMULATION ---")
@@ -42,9 +42,15 @@ def run_active_simulation():
     
     # 5. Storage (Track prices for ALL assets)
     price_history = np.zeros((config.N_STEPS, config.N_ASSETS))
+    
+    warmup_noise = np.random.normal(0, 0.5, (config.N_ASSETS)) # 50 cent variance
+    
     for i in range(config.N_ASSETS): 
-        price_history[0, i] = config.INITIAL_PRICE
-        books[i].mid_price = config.INITIAL_PRICE
+        # Set the starting point to slightly random values (99.5 to 100.5)
+        # to ensure StdDev is not zero
+        start_price = config.INITIAL_PRICE + warmup_noise[i]
+        price_history[0, i] = start_price
+        books[i].mid_price = start_price
     
     # --- SIMULATION LOOP ---
     panic_factor = 0.0

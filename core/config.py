@@ -6,15 +6,15 @@
 # UNCOMMENT ONE BLOCK BELOW TO CHOOSE TIMEFRAME
 
 # --- OPTION A: DAILY DATA (Swing Trading / Macro) ---
-TIMEFRAME = "1D"
-STEPS_PER_DAY = 1
-TRADING_DAYS = 252  # 1 Year
+# TIMEFRAME = "1D"
+# STEPS_PER_DAY = 1
+# TRADING_DAYS = 252  # 1 Year
 # ----------------------------------------------------
 
 # --- OPTION B: HOURLY DATA (Swing / Intra-Day) ---
-# TIMEFRAME = "1h"
-# STEPS_PER_DAY = 7   # 7 bars per day (9:30-4:00)
-# TRADING_DAYS = 252  # 1 Year (~1,764 total steps)
+TIMEFRAME = "1h"
+STEPS_PER_DAY = 7   # 7 bars per day (9:30-4:00)
+TRADING_DAYS = 252  # 1 Year (~1,764 total steps)
 # -------------------------------------------------
 
 # --- OPTION C: MINUTE DATA (Day Trading) ---
@@ -79,7 +79,7 @@ if TIMEFRAME == "1s":
     SWAN_COOLDOWN = 0
     SWAN_SEVERITY = 0.0
 else:
-    ENABLE_BLACK_SWANS = True
+    ENABLE_BLACK_SWANS = False
     MAX_SWANS_PER_YEAR = 2  
     SWAN_SEVERITY = 0.9     
     # Scale probability so we don't crash 390x more often on minute data
