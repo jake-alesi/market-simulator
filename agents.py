@@ -7,9 +7,11 @@ class Agent:
         self.strategy = strategy_name
         self.position = 0 
         
-    def decide(self, book, history, vol, panic):
-        # Need enough history to calculate moving averages
-        if len(history) < 30: return 0
+        
+    def decide(self, book, history, vol, panic, step_index): # <--- Add step_index
+        # SAFEGUARD: Don't trade if it's not my turn
+        if step_index % config.AGENT_PATIENCE != 0:
+            return 0 
         
         signal = 0
         
