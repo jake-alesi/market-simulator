@@ -1,5 +1,5 @@
 import numpy as np
-import config
+import core.config as config
 
 class Agent:
     def __init__(self, strategy_name):

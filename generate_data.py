@@ -4,10 +4,10 @@
 
 import numpy as np
 import pandas as pd
-import config
-from physics import MarketPhysics
-from market import OrderBook
-from agents import Agent
+import core.config as config
+from core.physics import MarketPhysics
+from core.market import OrderBook
+from core.agents import Agent
 
 def generate_passive_data():
     print(f"--- GENERATING PASSIVE DATASET ---")

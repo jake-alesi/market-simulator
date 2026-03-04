@@ -1,7 +1,7 @@
 # physics.py, volatility, correlation structure, market factor, sector blocks, Heston model, Cholesky decomposition
 import numpy as np
 from scipy.linalg import block_diag
-import config
+import core.config as config
 
 class MarketPhysics:
     def __init__(self):

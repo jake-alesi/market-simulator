@@ -1,5 +1,5 @@
 # market.py, order book, spreads, execution, liquidity, panic factor, volatility, price impact
-import config
+import core.config as config
 
 class OrderBook:
     def __init__(self, start_price=config.INITIAL_PRICE):
