@@ -1,14 +1,17 @@
 # main.py
-# ACTIVE MODE: Multi-Asset Edition with Progress Bar
+# ACTIVE MODE: Core Folder Edition + Dual Plots
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from tqdm import tqdm 
+
+# --- NEW IMPORTS FOR 'CORE' FOLDER ---
 import core.config as config
 from core.physics import MarketPhysics
 from core.market import OrderBook
 from core.agents import Agent
+
 from my_strategy import UserStrategy
 
 def run_active_simulation():
@@ -23,9 +26,7 @@ def run_active_simulation():
     # 2. Init Assets
     books = [OrderBook() for _ in range(config.N_ASSETS)]
     
-    # 3. Init Agents (UNIQUE POPULATION PER ASSET)
-    # We create a list of lists so that the agents trading Asset 0 are distinct
-    # from those trading Asset 1. This prevents position state contamination.
+    # 3. Init Agents (Unique Population per Asset)
     all_asset_agents = []
     for _ in range(config.N_ASSETS):
         local_agents = []
@@ -36,11 +37,10 @@ def run_active_simulation():
         all_asset_agents.append(local_agents)
 
     # 4. Init Strategy
-    # Pass N_ASSETS so the strategy can build a portfolio dictionary
     my_algo = UserStrategy(config.N_ASSETS)
     my_pnl_history = []
     
-    # 5. Storage
+    # 5. Storage (Track prices for ALL assets)
     price_history = np.zeros((config.N_STEPS, config.N_ASSETS))
     for i in range(config.N_ASSETS): 
         price_history[0, i] = config.INITIAL_PRICE
@@ -53,10 +53,11 @@ def run_active_simulation():
     
     print("--- STARTING LIVE TRADING LOOP ---")
 
+    # TQDM Progress Bar
     for t in tqdm(range(1, config.N_STEPS), desc="Simulating Market", unit="step"):
         current_vol = vol_path[t] if t < len(vol_path) else vol_path[-1]
         
-        # --- BLACK SWAN LOGIC ---
+        # Black Swan Logic
         panic_factor *= 0.92
         if swan_cooldown > 0: swan_cooldown -= 1
         
@@ -64,17 +65,14 @@ def run_active_simulation():
             if (swans_triggered < config.MAX_SWANS_PER_YEAR and 
                 swan_cooldown == 0 and 
                 np.random.rand() < config.SWAN_PROBABILITY):
-                # Use tqdm.write to avoid breaking the progress bar
                 tqdm.write(f"[!] BLACK SWAN EVENT at Step {t}")
                 panic_factor = config.SWAN_SEVERITY
                 swans_triggered += 1
                 swan_cooldown = config.SWAN_COOLDOWN
 
-        # Generate Physics Shocks (Correlated)
+        # Generate Correlated Shocks
         shocks = physics.L @ np.random.normal(0, 1, config.N_ASSETS)
         
-        # Track Total Portfolio Value for this step
-        # Start with Cash, then add value of all stock holdings
         step_equity_value = 0 
         
         # --- ASSET LOOP ---
@@ -82,70 +80,81 @@ def run_active_simulation():
             ticker = f"STK_{i:03d}"
             book = books[i]
             
-            # A. Update Market Physics
+            # Update Market Physics
             book.update_quotes(current_vol, panic_factor)
             drift = 0.0001
             if panic_factor > 0.1: drift -= (panic_factor * 0.08)
             fund_return = drift + (current_vol * np.sqrt(config.DT) * shocks[i])
             book.mid_price *= np.exp(fund_return)
             
-            # B. Gather History
+            # Gather History
             asset_hist = price_history[:t, i]
             
-            # C. Internal Agents (Use the specific population for this asset)
+            # Internal Agents
             net_flow = 0
-            current_agents = all_asset_agents[i] # <--- Retrieve specific agents
-            
+            current_agents = all_asset_agents[i]
             for agent in current_agents:
                 qty = agent.decide(book, asset_hist, current_vol, panic_factor, t)
                 net_flow += qty
             
-            # --- D. INJECT YOUR STRATEGY ---
-            # Strategy decides for THIS specific asset 'i'
+            # INJECT YOUR STRATEGY
             user_trade_size = my_algo.on_data(book, asset_hist, current_vol, t, ticker)
             net_flow += user_trade_size 
             
-            # E. Execute
+            # Execute
             exec_price = book.execute(net_flow)
             price_history[t, i] = exec_price
             
-            # F. Mark-to-Market
+            # Mark-to-Market
             if user_trade_size != 0:
                 fill_price = book.ask if user_trade_size > 0 else book.bid
                 my_algo.positions[ticker] += user_trade_size
                 my_algo.cash -= (user_trade_size * fill_price)
             
-            # Calculate value of this position for total equity report
             step_equity_value += (my_algo.positions[ticker] * exec_price)
 
-        # End of Step: Record Total Equity (Cash + All Stock Value)
+        # Record Total Equity
         total_account_value = my_algo.cash + step_equity_value
-        
         my_pnl_history.append({
             'Step': t,
             'Cash': my_algo.cash,
             'Equity': total_account_value
         })
 
-    # --- RESULTS & PLOTTING ---
-    print("--- Simulation Complete ---")
+    # --- VISUALIZATION DASHBOARD ---
+    print("\n--- Simulation Complete. Generating Dashboard... ---")
     df_res = pd.DataFrame(my_pnl_history)
     df_res.to_csv('my_performance.csv', index=False)
     
-    final_eq = df_res.iloc[-1]['Equity']
-    print(f"Final Equity: ${final_eq:,.2f}")
+    # Calculate Equal-Weighted Market Index (Average of all stocks)
+    market_index = np.mean(price_history[:config.N_STEPS], axis=1)
     
-    # Plot
-    plt.figure(figsize=(10, 6))
-    plt.plot(df_res['Step'], df_res['Equity'], label='Total Portfolio Value', color='blue')
-    plt.title(f'Multi-Asset Strategy Performance ({config.TIMEFRAME})')
-    plt.ylabel('Equity ($)')
-    plt.xlabel('Step')
-    plt.legend()
-    plt.grid(True, linestyle='--', alpha=0.6)
+    # Create Dual-Axis Plot
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
+
+    # Plot 1: My Strategy
+    ax1.plot(df_res['Step'], df_res['Equity'], color='#2ca02c', linewidth=1.5, label='My Portfolio Equity')
+    ax1.set_title(f'Strategy Performance ({config.TIMEFRAME})', fontsize=14, fontweight='bold')
+    ax1.set_ylabel('Total Equity ($)', fontsize=12)
+    ax1.grid(True, linestyle='--', alpha=0.6)
+    ax1.legend(loc='upper left')
+
+    # Plot 2: Simulated Market
+    ax2.plot(range(config.N_STEPS), market_index, color='#1f77b4', linewidth=1.5, label='Market Index (Avg Price)')
+    # Add faint lines for individual assets to show dispersion
+    for i in range(min(5, config.N_ASSETS)): 
+        ax2.plot(range(config.N_STEPS), price_history[:config.N_STEPS, i], color='gray', alpha=0.2, linewidth=0.5)
+    
+    ax2.set_title('Simulated Market Overview', fontsize=14, fontweight='bold')
+    ax2.set_ylabel('Asset Price ($)', fontsize=12)
+    ax2.set_xlabel('Simulation Step', fontsize=12)
+    ax2.grid(True, linestyle='--', alpha=0.6)
+    ax2.legend(loc='upper left')
+
     plt.tight_layout()
-    plt.savefig('performance_chart.png')
-    print("Saved plot to 'performance_chart.png'")
+    plt.savefig('performance_dashboard.png')
+    print(f"Saved dashboard to 'performance_dashboard.png'")
+    print(f"Final Equity: ${df_res.iloc[-1]['Equity']:,.2f}")
     plt.show()
 
 if __name__ == "__main__":
